@@ -32,6 +32,8 @@ export {default as MemoryCacheStore} from './stores/MemoryCacheStore';
 export {default as CookieChunking} from './utils/CookieChunking';
 export {default as NodeCryptoUtils} from './utils/NodeCryptoUtils';
 export {default as SessionUtils} from './utils/SessionUtils';
+export {default as SessionIndex} from './utils/SessionIndex';
+export type {IndexedSessions, SessionBinding} from './utils/SessionIndex';
 export {default as generateSessionId} from './utils/generateSessionId';
 export {default as getSessionCookieOptions} from './utils/getSessionCookieOptions';
 

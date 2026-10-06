@@ -1,7 +1,7 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {ThunderIDNodeConfig, ThunderIDRuntimeError, TokenResponse} from '@thunderid/node';
+import {BackchannelLogoutResult, ThunderIDNodeConfig, ThunderIDRuntimeError, TokenResponse} from '@thunderid/node';
 import express from 'express';
 
 /**
@@ -16,6 +16,15 @@ export interface StrictExpressClientConfig {
   onError?: (res: express.Response, exception: ThunderIDRuntimeError) => void;
   /** Called with the response when a protected route is accessed without a valid session. */
   onUnauthenticated?: (res: express.Response) => void;
+  /**
+   * Called after a back-channel logout ended this SDK's sessions, so the application can clear
+   * what it holds for them. Best effort: a failure is logged and the handler still answers 200,
+   * since the sessions are already ended and a retry would find nothing.
+   *
+   * This SDK mounts the endpoint with `handleBackchannelLogout()` and does not read the
+   * `backchannelLogout` configuration key of the SDK specification.
+   */
+  onBackchannelLogout?: (result: BackchannelLogoutResult) => void | Promise<void>;
 }
 
 /**

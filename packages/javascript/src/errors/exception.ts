@@ -14,3 +14,13 @@ export class ThunderIDAuthException extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
+
+/**
+ * Raised when a back-channel logout token is not valid. A logout handler answers 400 for this and a
+ * 5xx for any other failure, which tells the server whether a retry can help.
+ */
+export class InvalidLogoutTokenError extends ThunderIDAuthException {
+  public constructor(code: string, message: string) {
+    super(code, 'Invalid logout token.', message);
+  }
+}

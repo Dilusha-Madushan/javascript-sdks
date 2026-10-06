@@ -20,6 +20,7 @@ import {Crypto} from './models/crypto';
 import {ExtendedAuthorizeRequestUrlParams} from './models/oauth-request';
 import {OIDCDiscoveryApiResponse} from './models/oidc-discovery';
 import {OIDCEndpoints} from './models/oidc-endpoints';
+import {LogoutTokenClaims} from './models/logout-token';
 import {SessionData, UserSession} from './models/session';
 import {Storage, TemporaryStore} from './models/store';
 import {AccessTokenApiResponse, IdToken, TokenExchangeRequestConfig, TokenResponse} from './models/token';
@@ -219,6 +220,17 @@ class ThunderIDJavaScriptClient<T = Config> implements ThunderIDClient<T> {
 
   public async decodeJwtToken<R = Record<string, unknown>>(token: string): Promise<R> {
     return this.cryptoHelper.decodeJwtToken<R>(token);
+  }
+
+  /**
+   * Validates a back-channel logout token and returns its claims. Protected, because only an SDK
+   * that runs on a server can receive one; such an SDK builds its logout handler on this.
+   */
+  protected async validateLogoutToken(logoutToken: string): Promise<LogoutTokenClaims> {
+    // A logout request can be the first thing a process handles, before any sign-in loaded the metadata.
+    await this.loadOpenIDProviderConfiguration(false);
+
+    return this.authHelper.validateLogoutToken(logoutToken);
   }
 
   public async exchangeToken(

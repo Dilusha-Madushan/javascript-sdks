@@ -58,6 +58,41 @@ Prefer a GUI? Download the Postman collection from the API docs page (or directl
 `/postman-collection.json`), paste your token into the `accessToken` collection variable, and run
 the requests from there.
 
+## Back-channel logout
+
+The demo session behind `/login` and `/token` can be ended by ThunderID itself. When the user's
+ThunderID session ends somewhere else, for example by signing out of another application,
+ThunderID posts a logout token to this app, and the SDK ends the local session. The route is one
+line in `index.mjs`:
+
+```js
+app.post('/backchannel-logout', handleBackchannelLogout());
+```
+
+To try it:
+
+1. In the ThunderID Console, open this application, go to **Advanced Settings → OAuth2
+   Configuration**, and set **Back-Channel Logout URI** to
+   `http://localhost:3000/backchannel-logout`.
+2. ThunderID refuses localhost and private network addresses by default. For local testing only,
+   turn that off in the server's `deployment.yaml` and restart it:
+   ```yaml
+   oauth:
+     logout:
+       backchannel:
+         reject_private_addresses: false
+   ```
+3. Sign in at [http://localhost:3000/login](http://localhost:3000/login), then sign in to a second
+   application in the same browser, so both share one ThunderID session.
+4. Sign out of the second application. Open [http://localhost:3000/token](http://localhost:3000/token):
+   you are sent back to sign-in, because this app's session was ended too.
+
+The Bearer-token API routes (`/api/*`) are not affected: they check each access token with
+ThunderID on every request and hold no session.
+
+The SDK keeps sessions in memory by default. If you run more than one instance of an app, give the
+SDK a shared store, since ThunderID's request reaches only one of them.
+
 ## Learn more
 
 - [ThunderID Docs](https://thunderid.dev/docs)

@@ -8,6 +8,7 @@ export {default as ThunderIDExpressClient} from './ThunderIDExpressClient';
 export {thunderID, handleSignIn, handleSignOut} from './middleware/authentication';
 export {default as protect} from './middleware/protect';
 export {default as handleFlow} from './middleware/flow';
+export {default as handleBackchannelLogout} from './middleware/backchannelLogout';
 
 // Models
 export type {ExpressClientConfig, ThunderIDExpressConfig, StrictExpressClientConfig} from './models/config';

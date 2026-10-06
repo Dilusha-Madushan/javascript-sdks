@@ -4,12 +4,16 @@
 import extractUserClaimsFromIdToken from './extractUserClaimsFromIdToken';
 import processOpenIDScopes from './processOpenIDScopes';
 import {RESOURCE_ENDPOINT_KEYS} from './resolveResourceEndpoint';
+import validateLogoutTokenClaims from './validateLogoutTokenClaims';
+import BackchannelLogoutConstants from '../constants/BackchannelLogoutConstants';
 import OIDCDiscoveryConstants from '../constants/OIDCDiscoveryConstants';
+import TokenConstants from '../constants/TokenConstants';
 import TokenExchangeConstants from '../constants/TokenExchangeConstants';
-import {ThunderIDAuthException} from '../errors/exception';
+import {InvalidLogoutTokenError, ThunderIDAuthException} from '../errors/exception';
 import {IsomorphicCrypto} from '../IsomorphicCrypto';
 import {AuthClientConfig} from '../models/config';
 import {JWKInterface} from '../models/crypto';
+import {LogoutTokenClaims} from '../models/logout-token';
 import {OIDCDiscoveryEndpointsApiResponse, OIDCDiscoveryApiResponse} from '../models/oidc-discovery';
 import {SessionData} from '../models/session';
 import {IdToken, TokenResponse, AccessTokenApiResponse} from '../models/token';
@@ -30,6 +34,14 @@ class AuthenticationHelper<T> {
   private oidcProviderMetaData: () => Promise<OIDCDiscoveryApiResponse>;
 
   private cryptoHelper: IsomorphicCrypto;
+
+  private jwksCache: {fetchedAt: number; keys: JWKInterface[]} | undefined;
+
+  // The fetch in flight, shared by every request that arrives while it runs, and when the last
+  // one started, whether or not it succeeded. Together they bound the fetches a burst can cause.
+  private jwksFetch: Promise<JWKInterface[]> | undefined;
+
+  private jwksFetchStartedAt = 0;
 
   /**
    * Creates a new `AuthenticationHelper` instance.
@@ -185,6 +197,139 @@ class AuthenticationHelper<T> {
    * @throws {ThunderIDAuthException} When the JWKS endpoint is missing or the request fails.
    */
   public async validateIdToken(idToken: string): Promise<boolean> {
+    const keys: JWKInterface[] = await this.fetchJwks();
+    const {issuer} = await this.oidcProviderMetaData();
+
+    const jwk: any = await this.cryptoHelper.getJWKForTheIdToken(idToken.split('.')[0], keys);
+
+    return this.cryptoHelper.isValidIdToken(
+      idToken,
+      jwk,
+      (await this.config()).clientId ?? '',
+      issuer ?? '',
+      this.cryptoHelper.decodeJwtToken<IdToken>(idToken).sub,
+      (await this.config()).tokenValidation?.idToken?.clockTolerance,
+      (await this.config()).tokenValidation?.idToken?.validateIssuer ?? true,
+    );
+  }
+
+  /**
+   * Validates a back-channel logout token: its type, event, issuer, audience and lifetime, then its
+   * signature against the server's keys. The claims are checked first, so a malformed token costs
+   * neither a key fetch nor a signature check.
+   *
+   * @param logoutToken - The raw `logout_token` the server posted.
+   * @returns The token's claims.
+   * @throws {InvalidLogoutTokenError} When the token is not valid.
+   */
+  public async validateLogoutToken(logoutToken: string): Promise<LogoutTokenClaims> {
+    const malformed: InvalidLogoutTokenError = new InvalidLogoutTokenError(
+      'JS-AUTH_HELPER-VLT-IV01',
+      'The logout token is not a signed JWT.',
+    );
+
+    if (typeof logoutToken !== 'string' || logoutToken.split('.').length !== 3) {
+      throw malformed;
+    }
+
+    const configData: AuthClientConfig<T> = await this.config();
+    const {issuer} = await this.oidcProviderMetaData();
+    const clockTolerance: number =
+      configData.tokenValidation?.idToken?.clockTolerance ?? BackchannelLogoutConstants.DEFAULT_CLOCK_TOLERANCE_SECONDS;
+    let header: Record<string, unknown>;
+    let payload: Record<string, unknown>;
+
+    try {
+      header = this.cryptoHelper.decodeJwtHeader(logoutToken);
+      payload = this.cryptoHelper.decodeJwtToken(logoutToken);
+    } catch {
+      throw malformed;
+    }
+
+    const claims: LogoutTokenClaims = validateLogoutTokenClaims(header, payload, {
+      clientId: configData.clientId ?? '',
+      clockTolerance,
+      issuer: issuer ?? '',
+      supportedAlgorithms: TokenConstants.SignatureValidation.SUPPORTED_ALGORITHMS,
+    });
+
+    await this.cryptoHelper.verifyLogoutTokenSignature(
+      logoutToken,
+      await this.getCachedJwk(header['kid']),
+      configData.clientId ?? '',
+      issuer ?? '',
+      claims.sub,
+      clockTolerance,
+    );
+
+    return claims;
+  }
+
+  /**
+   * Returns the server key with the given identifier from a cached key set. An unknown identifier
+   * triggers one re-fetch, to follow key rotation, no more often than the minimum interval: the
+   * logout endpoint is unauthenticated, so an unbounded re-fetch would let anyone drive requests
+   * to the server. Requests that arrive while a fetch runs share it.
+   */
+  private async getCachedJwk(kid: unknown): Promise<JWKInterface> {
+    const now: number = Date.now();
+    const find = (keys: JWKInterface[]): JWKInterface | undefined =>
+      keys.find((key: JWKInterface): boolean => key.kid === kid);
+    const fresh: boolean =
+      this.jwksCache !== undefined && now - this.jwksCache.fetchedAt < BackchannelLogoutConstants.JWKS_CACHE_TTL_MS;
+
+    let jwk: JWKInterface | undefined = fresh ? find(this.jwksCache!.keys) : undefined;
+
+    if (
+      !jwk &&
+      (this.jwksFetch || now - this.jwksFetchStartedAt >= BackchannelLogoutConstants.JWKS_MIN_REFETCH_INTERVAL_MS)
+    ) {
+      jwk = find(await this.fetchJwksOnce());
+    } else if (!jwk && !fresh) {
+      // The last fetch failed a moment ago. A 5xx lets the server try again; a 400 would not.
+      throw new ThunderIDAuthException(
+        'JS-AUTH_HELPER-GCJ-NA02',
+        'The server keys are not available.',
+        'The server key set could not be fetched recently, and the cached one has expired.',
+      );
+    }
+
+    if (!jwk) {
+      throw new InvalidLogoutTokenError(
+        'JS-AUTH_HELPER-GCJ-NF01',
+        'The logout token names a key the server does not publish.',
+      );
+    }
+
+    return jwk;
+  }
+
+  /**
+   * Fetches the key set unless a fetch is already running, in which case that one is shared.
+   */
+  private fetchJwksOnce(): Promise<JWKInterface[]> {
+    if (!this.jwksFetch) {
+      this.jwksFetchStartedAt = Date.now();
+      this.jwksFetch = this.fetchJwks()
+        .then((keys: JWKInterface[]): JWKInterface[] => {
+          this.jwksCache = {fetchedAt: Date.now(), keys};
+
+          return keys;
+        })
+        .finally((): void => {
+          this.jwksFetch = undefined;
+        });
+    }
+
+    return this.jwksFetch;
+  }
+
+  /**
+   * Fetches the server's JSON Web Key Set.
+   *
+   * @throws {ThunderIDAuthException} When the JWKS endpoint is missing or the request fails.
+   */
+  private async fetchJwks(): Promise<JWKInterface[]> {
     const jwksEndpoint: string | undefined = (await this.storageManager.loadOpenIDProviderConfiguration()).jwks_uri;
     const configData: AuthClientConfig<T> = await this.config();
 
@@ -219,23 +364,11 @@ class AuthenticationHelper<T> {
       );
     }
 
-    const {issuer} = await this.oidcProviderMetaData();
-
     const {keys}: {keys: JWKInterface[]} = (await response.json()) as {
       keys: JWKInterface[];
     };
 
-    const jwk: any = await this.cryptoHelper.getJWKForTheIdToken(idToken.split('.')[0], keys);
-
-    return this.cryptoHelper.isValidIdToken(
-      idToken,
-      jwk,
-      (await this.config()).clientId ?? '',
-      issuer ?? '',
-      this.cryptoHelper.decodeJwtToken<IdToken>(idToken).sub,
-      (await this.config()).tokenValidation?.idToken?.clockTolerance,
-      (await this.config()).tokenValidation?.idToken?.validateIssuer ?? true,
-    );
+    return keys;
   }
 
   /**
