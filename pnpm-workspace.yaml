@@ -76,6 +76,12 @@ overrides:
   # advisory's own "patched" floor (>=1.8.5) is stale — 1.8.5 was never published; 1.10.0 is the
   # first published fix.
   shell-quote: 1.10.0
+  # JUSTIFICATION: Fixes GHSA-68fv-2mgg-jv7q — source-map-js event-loop DoS through indexed
+  # source-map section offsets. Transitive via `postcss`, `@vue/compiler-core`, `css-tree` and
+  # `magicast` across the vitest/vite/nuxt toolchains. Their ranges already permit 1.2.2; the
+  # lockfile just kept resolving 1.2.1, so this pin can likely be dropped once those entries are
+  # refreshed. Added 2026-10-06.
+  source-map-js: 1.2.2
   # JUSTIFICATION: Fixes GHSA-2p49-hgcm-8545 — SVGO's `removeScripts` plugin leaves some executable
   # script content intact — plus GHSA-w27v-7q3p-w38r (2026-09-11), a follow-up bypass of the same
   # plugin via namespaced and control-character-obfuscated links that needs >=4.1.0, above the
@@ -111,6 +117,28 @@ auditConfig:
     # certificates for the local HTTPS dev server — it never verifies signatures. Added
     # 2026-10-02; revisit once node-forge publishes a fixed release.
     - GHSA-86w9-cpqp-85rv
+    # JUSTIFICATION: GHSA-vfj7-8cjw-p6xm — braces stack-exhaustion DoS through deeply nested brace
+    # patterns. No patched release exists (3.0.3 is the latest and is affected). Transitive via
+    # nuxt's build tooling (`@nuxt/nitro-server` > `nitropack` > `globby` > `fast-glob` >
+    # `micromatch` > `braces`), which only expands glob patterns taken from the project's own
+    # config and filesystem at build time; no untrusted input reaches it at runtime and it is not
+    # part of the published SDK output. Added 2026-10-06; revisit once braces publishes a fix.
+    - GHSA-vfj7-8cjw-p6xm
+    # JUSTIFICATION: GHSA-x6jw-m9v5-85vh / GHSA-g4wm-2vf7-vfgr / GHSA-858h-whjf-mvg5 (simple-git) and
+    # GHSA-v5rq-49vh-5v5c (`@simple-git/argv-parser`) — simple-git's unsafe-operations guard can be
+    # bypassed (`trailer.<token>.cmd`, config includes, long-option abbreviations, `VISUAL`), but
+    # only when untrusted values reach `SimpleGitOptions.config` or the arguments passed to git.
+    # Transitive via packages/nuxt and samples/nuxt/quickstart's `nuxt` > `@nuxt/devtools` >
+    # `simple-git`, where devtools (a dev-time tool) only runs `branch()`, `revparse(['--short',
+    # 'HEAD'])` and `status()` with fixed arguments on the project's own checkout. The patched
+    # 4.x line cannot be forced with an override: it drops the default export that
+    # `@nuxt/devtools` imports (`import Git from 'simple-git'`), which breaks the nuxt build, and
+    # `@nuxt/devtools`@latest (3.4.2) still declares `simple-git: ^3.36.0`. Added 2026-10-06;
+    # revisit once `@nuxt/devtools` ships a release that supports simple-git >=4.0.1.
+    - GHSA-x6jw-m9v5-85vh
+    - GHSA-g4wm-2vf7-vfgr
+    - GHSA-858h-whjf-mvg5
+    - GHSA-v5rq-49vh-5v5c
 
 catalog:
   '@emotion/css': 11.13.5
@@ -122,7 +150,7 @@ catalog:
   '@types/node': 24.7.2
   '@types/react': 19.2.14
   '@types/react-dom': 19.2.3
-  '@vitest/browser-playwright': 4.1.10
+  '@vitest/browser-playwright': 4.1.11
   base64url: 3.0.1
   buffer: 6.0.3
   core-js: 3.42.0
@@ -147,7 +175,7 @@ catalog:
   tslib: 2.8.1
   typescript: 5.9.3
   uuid: 11.1.1
-  vitest: 4.1.10
+  vitest: 4.1.11
 
 minimumReleaseAgeExclude:
   - '@thunderid/*'
