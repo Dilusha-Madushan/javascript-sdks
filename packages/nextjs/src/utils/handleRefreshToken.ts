@@ -36,7 +36,16 @@ const handleRefreshToken = async (
   config: HandleRefreshTokenConfig,
 ): Promise<HandleRefreshTokenResult> => {
   const {baseUrl, clientId, clientSecret, sessionCookie} = config;
-  const {refreshToken: storedRefreshToken, sessionId, sub, scopes, organizationId} = sessionPayload;
+  const {
+    refreshToken: storedRefreshToken,
+    sessionId,
+    sub,
+    scopes,
+    organizationId,
+    sid,
+    signedInAt,
+    iat,
+  } = sessionPayload;
 
   if (!storedRefreshToken) {
     throw new Error('No refresh token found in session payload.');
@@ -94,6 +103,8 @@ const handleRefreshToken = async (
     expiresIn,
     newRefreshToken,
     organizationId,
+    // A refreshed session is still the same sign-in, so it keeps what a logout matches it by.
+    {sid, signedInAt: signedInAt ?? iat},
   );
 
   return {

@@ -3,6 +3,7 @@
 
 import {ThunderIDRuntimeError, CookieConfig} from '@thunderid/node';
 import {SignJWT, jwtVerify, compactVerify, JWTPayload} from 'jose';
+import {getLoggedOutSessions} from './loggedOutSessions';
 import {DEFAULT_SESSION_COOKIE_EXPIRY_TIME} from '../constants/sessionConstants';
 
 /**
@@ -21,6 +22,10 @@ export interface SessionTokenPayload extends JWTPayload {
   scopes: string[];
   /** Session ID */
   sessionId: string;
+  /** The server session this session joined, from the `sid` of the ID token. */
+  sid?: string;
+  /** When the user signed in, in seconds. Kept across token refresh, unlike `iat`. */
+  signedInAt?: number;
   /** User ID */
   sub: string;
   /** Token type discriminant — must be 'session' for access-session JWTs */
@@ -108,6 +113,7 @@ class SessionManager {
     accessTokenTtlSeconds: number,
     refreshToken: string,
     organizationId?: string,
+    serverSession?: {sid?: string; signedInAt?: number},
   ): Promise<string> {
     const secret: Uint8Array = this.getSecret();
 
@@ -117,6 +123,9 @@ class SessionManager {
       refreshToken,
       scopes,
       sessionId,
+      // What a back-channel logout matches this session by.
+      sid: serverSession?.sid,
+      signedInAt: serverSession?.signedInAt ?? Math.floor(Date.now() / 1000),
       type: 'session',
     } as Omit<SessionTokenPayload, 'sub' | 'iat' | 'exp'>)
       .setProtectedHeader({alg: 'HS256'})
@@ -139,6 +148,8 @@ class SessionManager {
       if (payload['type'] !== 'session') {
         throw new Error('Invalid token type');
       }
+
+      await this.refuseLoggedOutSession(payload as SessionTokenPayload);
 
       return payload as SessionTokenPayload;
     } catch (error) {
@@ -171,6 +182,8 @@ class SessionManager {
       if (payload.type !== 'session') {
         throw new Error('Invalid token type');
       }
+
+      await this.refuseLoggedOutSession(payload);
 
       return payload;
     } catch (error) {
@@ -209,6 +222,22 @@ class SessionManager {
   /**
    * Get session cookie options
    */
+  /**
+   * Throws when a back-channel logout has ended the session this cookie carries. The cookie is
+   * still correctly signed, so this is the only thing that stops it from being used.
+   */
+  private static async refuseLoggedOutSession(payload: SessionTokenPayload): Promise<void> {
+    const loggedOut: boolean = await getLoggedOutSessions().isLoggedOut({
+      sid: payload.sid,
+      startedAt: payload.signedInAt ?? payload.iat,
+      sub: payload.sub,
+    });
+
+    if (loggedOut) {
+      throw new Error('The session was ended by a back-channel logout');
+    }
+  }
+
   static getSessionCookieOptions(maxAge: number): {
     httpOnly: boolean;
     maxAge: number;

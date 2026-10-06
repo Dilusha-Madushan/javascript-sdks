@@ -49,6 +49,10 @@ export async function createSessionToken(
     refreshToken?: string;
     scopes: string;
     sessionId: string;
+    /** The `sid` of the ID token. Back-channel logout ends the session by it. */
+    sid?: string;
+    /** Unix timestamp (seconds) of the sign-in. Defaults to now. */
+    signedInAt?: number;
     userId: string;
   },
   sessionSecret?: string,
@@ -63,6 +67,8 @@ export async function createSessionToken(
     refreshToken: params.refreshToken,
     scopes: params.scopes,
     sessionId: params.sessionId,
+    sid: params.sid,
+    signedInAt: params.signedInAt ?? Math.floor(Date.now() / 1000),
     type: 'session',
   } as Omit<ThunderIDSessionPayload, 'sub' | 'iat' | 'exp'>)
     .setProtectedHeader({alg: 'HS256'})
@@ -206,6 +212,7 @@ export async function issueSessionCookie(
       refreshToken: tokenResponse.refreshToken || undefined,
       scopes: tokenResponse.scope || '',
       sessionId,
+      sid: typeof idToken.sid === 'string' ? idToken.sid : undefined,
       userId,
     },
     sessionSecret,

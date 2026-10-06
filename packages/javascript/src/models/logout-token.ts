@@ -50,6 +50,10 @@ export interface LogoutTokenValidationOptions {
  */
 export interface BackchannelLogoutResult {
   /**
+   * When the server issued the logout token, in seconds since the epoch.
+   */
+  issuedAt: number;
+  /**
    * How many local sessions were ended. Zero when the token named no session held here.
    */
   sessionsEnded: number;

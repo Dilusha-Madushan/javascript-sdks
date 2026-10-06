@@ -138,7 +138,8 @@ describe('ThunderIDNodeClient back-channel logout', () => {
 
     const result = await client.handleBackchannelLogout(await sign({}));
 
-    expect(result).toEqual({sessionsEnded: 1, sid: 'server-session-1', sub: 'user-1'});
+    expect(result).toMatchObject({sessionsEnded: 1, sid: 'server-session-1', sub: 'user-1'});
+    expect(Math.abs(result.issuedAt - Date.now() / 1000)).toBeLessThan(5);
     expect(await client.isSignedIn('local-1')).toBe(false);
     expect(await client.isSignedIn('local-2')).toBe(true);
   });

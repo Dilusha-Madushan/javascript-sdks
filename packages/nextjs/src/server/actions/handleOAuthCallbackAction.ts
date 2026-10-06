@@ -113,6 +113,7 @@ const handleOAuthCallbackAction = async (
           expiresIn,
           refreshToken,
           organizationId,
+          {sid: typeof idToken['sid'] === 'string' ? idToken['sid'] : undefined},
         );
 
         setChunkedCookie(

@@ -61,7 +61,13 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
       },
     );
 
-    const privateConfig: {clientSecret: string; flowSecret: string; sessionSecret: string} = {
+    const privateConfig: {
+      backchannelLogout: NonNullable<ThunderIDNuxtConfig['backchannelLogout']>;
+      clientSecret: string;
+      flowSecret: string;
+      sessionSecret: string;
+    } = {
+      backchannelLogout: userOptions.backchannelLogout ?? {},
       clientSecret: process.env.THUNDERID_CLIENT_SECRET || userOptions.clientSecret || '',
       flowSecret: process.env.THUNDERID_FLOW_SECRET || userOptions.flowSecret || '',
       sessionSecret: process.env.THUNDERID_SESSION_SECRET || userOptions.sessionSecret || '',
@@ -80,7 +86,7 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
     options.runtimeConfig.thunderid = defu(
       (options.runtimeConfig.thunderid as Record<string, unknown>) || {},
       privateConfig,
-    ) as {clientSecret: string; flowSecret: string; sessionSecret: string};
+    ) as typeof privateConfig;
 
     options.runtimeConfig.public.thunderid = defu(
       (options.runtimeConfig.public.thunderid as Record<string, unknown>) || {},
@@ -182,6 +188,15 @@ export default defineNuxtModule<ThunderIDNuxtConfig>({
         route: NuxtAPIRoutes.USER_CREDENTIALS,
       },
     ];
+
+    // Opt-in: the route accepts unauthenticated requests, so it is served only when asked for.
+    if (options.runtimeConfig.thunderid.backchannelLogout?.enabled) {
+      serverRoutes.push({
+        handler: resolve('./runtime/server/routes/auth/session/backchannel-logout.post'),
+        method: 'post' as const,
+        route: options.runtimeConfig.thunderid.backchannelLogout.path ?? NuxtAPIRoutes.BACKCHANNEL_LOGOUT,
+      });
+    }
 
     serverRoutes.forEach((sr: ServerRoute): void => {
       addServerHandler({handler: sr.handler, method: 'method' in sr ? sr.method : undefined, route: sr.route});
@@ -314,6 +329,7 @@ declare module '@nuxt/schema' {
 
   interface RuntimeConfig {
     thunderid: {
+      backchannelLogout?: ThunderIDNuxtConfig['backchannelLogout'];
       clientSecret: string;
       flowSecret: string;
       sessionSecret: string;
