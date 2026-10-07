@@ -192,6 +192,10 @@ class StorageManager<T> {
     return JSON.parse((await this.store.getData(this.resolveKey(key, userId))) ?? null);
   }
 
+  public async removeCustomData(key: string, userId?: string): Promise<void> {
+    await this.store.removeData(this.resolveKey(key, userId));
+  }
+
   public setSessionStatus(status: string): void {
     // Using local storage to store the session status as it is required to be available across tabs.
     if (StorageManager.isLocalStorageAvailable()) {

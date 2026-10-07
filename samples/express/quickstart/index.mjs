@@ -2,7 +2,14 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import {thunderID, handleSignIn, handleSignOut, protect, updateMeCredentials} from '@thunderid/express';
+import {
+  thunderID,
+  handleBackchannelLogout,
+  handleSignIn,
+  handleSignOut,
+  protect,
+  updateMeCredentials,
+} from '@thunderid/express';
 import {verifyBearerToken} from './lib/auth.mjs';
 import {layout, esc, escAttr, COPY_ICON} from './lib/layout.mjs';
 import {thunderMark} from './lib/thunderMark.mjs';
@@ -95,6 +102,10 @@ function renderConfigNeeded() {
               <div>
                 <div class="config-value-label">Post-Logout Redirect URI</div>
                 <code class="config-value">http://localhost:3000/logout</code>
+              </div>
+              <div>
+                <div class="config-value-label">Back-Channel Logout URI (optional)</div>
+                <code class="config-value">http://localhost:3000/backchannel-logout</code>
               </div>
             </div>
           </div>
@@ -264,6 +275,12 @@ app.get('/', async (req, res) => {
 
 app.get('/login', handleSignIn());
 app.get('/logout', handleSignOut());
+
+// ThunderID posts a logout token here when the session behind the demo cookie ends somewhere
+// else, such as a sign-out from another application. The SDK validates the token and ends the
+// local session, so `/token` sends you back to sign-in. Register this path as the application's
+// Back-Channel Logout URI to use it (see the README).
+app.post('/backchannel-logout', handleBackchannelLogout());
 
 app.get('/token', protect((res) => res.redirect('/login')), async (req, res) => {
   const {accessToken, user} = await getSession(req);

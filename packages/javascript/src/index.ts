@@ -58,6 +58,7 @@ export type {DeleteAgentConfig} from './api/agents/deleteAgent';
 
 export {default as ApplicationNativeAuthenticationConstants} from './constants/ApplicationNativeAuthenticationConstants';
 export {default as TokenConstants} from './constants/TokenConstants';
+export {default as BackchannelLogoutConstants} from './constants/BackchannelLogoutConstants';
 export {default as OIDCRequestConstants} from './constants/OIDCRequestConstants';
 export {default as VendorConstants} from './constants/VendorConstants';
 export {default as CredentialConstants} from './constants/CredentialConstants';
@@ -69,7 +70,7 @@ export {default as AgentQueryKeys} from './constants/AgentQueryKeys';
 export {default as ThunderIDError} from './errors/ThunderIDError';
 export {default as ThunderIDAPIError} from './errors/ThunderIDAPIError';
 export {default as ThunderIDRuntimeError} from './errors/ThunderIDRuntimeError';
-export {ThunderIDAuthException} from './errors/exception';
+export {InvalidLogoutTokenError, ThunderIDAuthException} from './errors/exception';
 
 export type {CIBAInitiateOptions, CIBAInitiateResponse, CIBAErrorCode, CIBAPollOptions} from './models/ciba';
 
@@ -164,6 +165,7 @@ export type {
 export type {TokenEndpointAuthMethod} from './models/token-endpoint-auth';
 export type {ComponentRenderContext, ComponentRenderer, ComponentsExtensions} from './models/extensions/components';
 export type {TokenResponse, IdToken, TokenExchangeRequestConfig} from './models/token';
+export type {BackchannelLogoutResult, LogoutTokenClaims, LogoutTokenValidationOptions} from './models/logout-token';
 export type {AgentConfig} from './models/agent';
 export type {ApiError, ApiFetcher, ApiFilteringParams, ApiPaginationLink, ManagementRequestConfig} from './models/api';
 export {
@@ -246,6 +248,7 @@ export {default as bem} from './utils/bem';
 export {default as formatDate} from './utils/formatDate';
 export {default as deepMerge} from './utils/deepMerge';
 export {default as extractUserClaimsFromIdToken} from './utils/extractUserClaimsFromIdToken';
+export {default as validateLogoutTokenClaims} from './utils/validateLogoutTokenClaims';
 export {default as isRecognizedBaseUrlPattern} from './utils/isRecognizedBaseUrlPattern';
 export {default as extractPkceStorageKeyFromState} from './utils/extractPkceStorageKeyFromState';
 export {default as getLatestStateParam} from './utils/getLatestStateParam';
