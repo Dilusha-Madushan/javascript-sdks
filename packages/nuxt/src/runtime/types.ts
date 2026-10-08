@@ -17,6 +17,21 @@ import type {JWTPayload} from 'jose';
  * Extends `AuthClientConfig` from `@thunderid/node` for 1:1 SDK parity.
  */
 export interface ThunderIDNuxtConfig extends AuthClientConfig {
+  /**
+   * OpenID Connect back-channel logout. When enabled, the module serves
+   * `POST /api/auth/backchannel-logout` (or `path`), which ThunderID calls when a session this
+   * application took part in ends. Register that URL as the application's back-channel logout URI.
+   */
+  backchannelLogout?: {
+    enabled?: boolean;
+    /** Route of the handler. Defaults to `/api/auth/backchannel-logout`. */
+    path?: string;
+    /**
+     * Name of a Nitro storage mount point that records ended sessions. Needed when more than one
+     * instance of the application runs. Defaults to the memory of this process.
+     */
+    store?: string;
+  };
   /** Secret for signing session JWTs (use THUNDERID_SESSION_SECRET env var) */
   sessionSecret?: string;
   /**
@@ -56,6 +71,10 @@ export interface ThunderIDSessionPayload extends JWTPayload {
   refreshToken?: string;
   scopes: string;
   sessionId: string;
+  /** The server session this session joined, from the `sid` of the ID token. */
+  sid?: string;
+  /** Unix timestamp (seconds) of the sign-in. Kept when the cookie is re-issued on token refresh. */
+  signedInAt?: number;
   sub: string;
 }
 

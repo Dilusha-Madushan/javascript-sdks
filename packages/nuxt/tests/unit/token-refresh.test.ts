@@ -239,6 +239,50 @@ describe('getValidAccessToken — successful refresh', () => {
   });
 });
 
+describe('getValidAccessToken — session binding', () => {
+  it('keeps the sid and the sign-in time when the cookie is re-issued', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    vi.mocked(requireServerSession).mockResolvedValue({
+      ...buildSession({accessTokenExpiresAt: now + 30, refreshToken: 'rt_kept'}),
+      sid: 'sid-1',
+      signedInAt: now - 600,
+    } as any);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ok: true, json: async () => ({access_token: 'at_new', expires_in: 3600})}),
+    );
+
+    await getValidAccessToken(fakeEvent);
+
+    const payload = await verifySessionToken(vi.mocked(setChunkedCookie).mock.calls[0][2] as string, TEST_SECRET);
+    expect(payload.sid).toBe('sid-1');
+    expect(payload.signedInAt).toBe(now - 600);
+
+    vi.unstubAllGlobals();
+  });
+
+  it('takes the sign-in time from the issue time of a cookie written before it was recorded', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    vi.mocked(requireServerSession).mockResolvedValue({
+      ...buildSession({accessTokenExpiresAt: now + 30, refreshToken: 'rt_kept'}),
+      iat: now - 900,
+    } as any);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ok: true, json: async () => ({access_token: 'at_new', expires_in: 3600})}),
+    );
+
+    await getValidAccessToken(fakeEvent);
+
+    const payload = await verifySessionToken(vi.mocked(setChunkedCookie).mock.calls[0][2] as string, TEST_SECRET);
+    expect(payload.signedInAt).toBe(now - 900);
+
+    vi.unstubAllGlobals();
+  });
+});
+
 describe('getValidAccessToken — failed refresh', () => {
   it('throws 401 when the token endpoint returns a non-ok status', async () => {
     const withinSkew = Math.floor(Date.now() / 1000) + 30;

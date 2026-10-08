@@ -141,6 +141,31 @@ describe('createTempSessionToken / verifyTempSessionToken', () => {
   });
 });
 
+describe('createSessionToken — session binding (sid / signedInAt)', () => {
+  it('carries the sid and records the sign-in time', async () => {
+    const before = Math.floor(Date.now() / 1000);
+    const token = await createSessionToken(
+      {accessToken: 'at_test', userId: 'user-123', sessionId: 'sess-abc', scopes: 'openid', sid: 'sid-1'},
+      TEST_SECRET,
+    );
+
+    const payload = await verifySessionToken(token, TEST_SECRET);
+    expect(payload.sid).toBe('sid-1');
+    expect(payload.signedInAt).toBeGreaterThanOrEqual(before);
+  });
+
+  it('keeps a given sign-in time', async () => {
+    const token = await createSessionToken(
+      {accessToken: 'at_test', userId: 'user-123', sessionId: 'sess-abc', scopes: 'openid', signedInAt: 1700000000},
+      TEST_SECRET,
+    );
+
+    const payload = await verifySessionToken(token, TEST_SECRET);
+    expect(payload.signedInAt).toBe(1700000000);
+    expect(payload.sid).toBeUndefined();
+  });
+});
+
 describe('createSessionToken — Phase 2 fields (accessTokenExpiresAt / refreshToken / idToken)', () => {
   it('round-trips accessTokenExpiresAt', async () => {
     const expiresAt = Math.floor(Date.now() / 1000) + 3600;

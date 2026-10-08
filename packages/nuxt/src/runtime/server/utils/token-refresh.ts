@@ -116,6 +116,8 @@ export async function getValidAccessToken(event: H3Event): Promise<string> {
       refreshToken: refreshed.refresh_token ?? session.refreshToken,
       scopes: refreshed.scope ?? session.scopes,
       sessionId: session.sessionId,
+      sid: session.sid,
+      signedInAt: session.signedInAt ?? session.iat,
       userId: session.sub,
     },
     privateConfig?.sessionSecret,

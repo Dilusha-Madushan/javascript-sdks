@@ -1,7 +1,7 @@
 // Copyright 2025 The ThunderID Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import {CookieChunking} from '@thunderid/node';
+import {CookieChunking, LogoutRecordStore} from '@thunderid/node';
 import {NextRequest, NextResponse} from 'next/server';
 import {REFRESH_BUFFER_SECONDS} from '../../constants/sessionConstants';
 import {ThunderIDNextConfig} from '../../models/config';
@@ -14,10 +14,19 @@ import {
 } from '../../utils/chunkedCookie';
 import decorateConfigWithNextEnv from '../../utils/decorateConfigWithNextEnv';
 import handleRefreshToken from '../../utils/handleRefreshToken';
+import {setLogoutRecordStore} from '../../utils/loggedOutSessions';
 import SessionManager, {SessionTokenPayload} from '../../utils/SessionManager';
 import {getSessionFromRequest, getSessionIdFromRequest} from '../../utils/sessionUtils';
 
-export type ThunderIDProxyOptions = Partial<ThunderIDNextConfig>;
+export type ThunderIDProxyOptions = Partial<ThunderIDNextConfig> & {
+  /**
+   * Where sessions ended by back-channel logout are recorded. Give the same store to
+   * `backchannelLogout()`. Needed when more than one instance of the application runs, or when
+   * this proxy runs on the Edge runtime, which shares no memory with the route handler. Defaults
+   * to the memory of this process.
+   */
+  backchannelLogout?: {store?: LogoutRecordStore};
+};
 
 export interface ThunderIDProxyContext {
   /** Get the session payload from JWT session if available */
@@ -168,6 +177,8 @@ const thunderIDProxy =
   ): ((request: NextRequest) => Promise<NextResponse>) =>
   async (request: NextRequest): Promise<NextResponse> => {
     const resolvedOptions: ThunderIDProxyOptions = typeof options === 'function' ? options(request) : options || {};
+
+    setLogoutRecordStore(resolvedOptions.backchannelLogout?.store);
 
     // Resolve full config from passed options + environment variable fallbacks.
     const resolvedConfig: ThunderIDNextConfig = decorateConfigWithNextEnv(resolvedOptions as ThunderIDNextConfig);

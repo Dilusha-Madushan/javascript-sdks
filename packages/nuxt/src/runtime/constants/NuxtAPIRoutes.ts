@@ -17,6 +17,7 @@
  * ```
  */
 const NuxtAPIRoutes: {
+  BACKCHANNEL_LOGOUT: string;
   CALLBACK: string;
   META: string;
   SESSION: string;
@@ -28,6 +29,8 @@ const NuxtAPIRoutes: {
   USER_CREDENTIALS: string;
   USER_PROFILE: string;
 } = {
+  /** Receives a back-channel logout token from ThunderID. Served only when enabled. */
+  BACKCHANNEL_LOGOUT: '/api/auth/backchannel-logout',
   /** Resolves the OAuth callback and completes sign-in. */
   CALLBACK: '/api/auth/callback',
   /** Serves flow metadata (design config + i18n bundle). */

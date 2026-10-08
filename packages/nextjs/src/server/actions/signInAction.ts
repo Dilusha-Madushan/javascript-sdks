@@ -126,6 +126,7 @@ const signInAction = async (
         expiresIn,
         '',
         organizationId,
+        {sid: typeof idToken['sid'] === 'string' ? idToken['sid'] : undefined},
       );
 
       setChunkedCookie(

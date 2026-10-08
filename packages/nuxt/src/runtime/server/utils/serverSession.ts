@@ -3,6 +3,7 @@
 
 import type {H3Event} from 'h3';
 import {createError} from 'h3';
+import {isSessionLoggedOut} from './loggedOutSessions';
 import {verifySessionToken, getSessionCookieName} from './session';
 import {getChunkedCookie} from './chunkedCookie';
 import type {ThunderIDSessionPayload} from '../../types';
@@ -37,7 +38,9 @@ export async function useServerSession(event: H3Event): Promise<ThunderIDSession
   }
 
   try {
-    return await verifySessionToken(sessionCookie, sessionSecret);
+    const session: ThunderIDSessionPayload = await verifySessionToken(sessionCookie, sessionSecret);
+
+    return (await isSessionLoggedOut(session)) ? null : session;
   } catch {
     return null;
   }
@@ -91,6 +94,10 @@ export async function verifyAndRehydrateSession(
   let session: ThunderIDSessionPayload;
   try {
     session = await verifySessionToken(sessionCookie, sessionSecret);
+
+    if (await isSessionLoggedOut(session)) {
+      return null;
+    }
   } catch {
     return null;
   }

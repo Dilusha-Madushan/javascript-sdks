@@ -163,7 +163,7 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
    * keeps a retried notification harmless.
    *
    * @param logoutToken - The raw `logout_token` form parameter.
-   * @returns The `sid` and `sub` the token named and how many sessions were ended.
+   * @returns The `sid` and `sub` the token named, when it was issued, and how many sessions were ended.
    * @throws {InvalidLogoutTokenError} When the token is not valid or was already handled.
    */
   public async handleBackchannelLogout(logoutToken: string): Promise<BackchannelLogoutResult> {
@@ -217,7 +217,7 @@ class ThunderIDNodeClient<T extends ThunderIDNodeConfig = ThunderIDNodeConfig> e
 
     this.rememberHandled(claims);
 
-    return {sessionsEnded, sid: claims.sid, sub: claims.sub};
+    return {issuedAt: claims.iat, sessionsEnded, sid: claims.sid, sub: claims.sub};
   }
 
   /**
