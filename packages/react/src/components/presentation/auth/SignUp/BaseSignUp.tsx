@@ -429,7 +429,7 @@ const BaseSignUpContent: FC<BaseSignUpProps> = ({
             const ruleValidator = buildValidatorFromRules(component.validation);
 
             fields.push({
-              initialValue: '',
+              initialValue: component.value ?? '',
               name: fieldName,
               required: component.required || false,
               validator: (value: string) => {

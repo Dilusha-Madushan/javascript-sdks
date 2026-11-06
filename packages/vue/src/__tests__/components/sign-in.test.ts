@@ -30,4 +30,32 @@ describe('BaseSignIn', () => {
 
     expect(slot).toHaveBeenLastCalledWith(expect.objectContaining({additionalData: {linkingPromptDetails: '[]'}}));
   });
+
+  it('seeds the form values from the prefill value of an input component', () => {
+    const slot: Mock = vi.fn(() => []);
+    mount(BaseSignIn, {
+      global: {
+        provide: {
+          [FLOW_KEY as symbol]: {
+            addMessage: vi.fn(),
+            clearMessages: vi.fn(),
+            messages: ref([]),
+            subtitle: ref(null),
+            title: ref(null),
+          },
+          [FLOW_META_KEY as symbol]: {meta: ref(null)},
+          [I18N_KEY as symbol]: {currentLanguage: ref('en-US'), t: (key: string): string => key},
+        },
+      },
+      props: {
+        components: [
+          {id: 'field_1', ref: 'department', type: 'TEXT_INPUT', value: 'Engineering'},
+          {id: 'field_2', ref: 'username', type: 'TEXT_INPUT'},
+        ],
+      },
+      slots: {default: slot},
+    });
+
+    expect(slot).toHaveBeenLastCalledWith(expect.objectContaining({values: {department: 'Engineering', username: ''}}));
+  });
 });

@@ -19,7 +19,7 @@ import useThunderID from '../../../../contexts/ThunderID/useThunderID';
 import {useOAuthCallback} from '../../../../hooks/useOAuthCallback';
 import useTranslation from '../../../../hooks/useTranslation';
 import {cx} from '../../../../styles/emotion';
-import {normalizeFlowResponse, extractErrorMessage} from '../../../../utils/flowTransformer';
+import {collectPrefillValues, normalizeFlowResponse, extractErrorMessage} from '../../../../utils/flowTransformer';
 import {initiateOAuthRedirect} from '../../../../utils/oauth';
 import AlertPrimitive from '../../../primitives/Alert/Alert';
 import Button from '../../../primitives/Button/Button';
@@ -358,6 +358,15 @@ const BaseAcceptInvite: FC<BaseAcceptInviteProps> = ({
     },
     [t, onError],
   );
+
+  // Show the values the server suggests for the inputs of a new step.
+  useEffect(() => {
+    const prefillValues: Record<string, string> = collectPrefillValues(currentFlow?.data?.components ?? []);
+
+    if (Object.keys(prefillValues).length > 0) {
+      setFormValues((prev: Record<string, string>) => ({...prev, ...prefillValues}));
+    }
+  }, [currentFlow]);
 
   /**
    * Normalize flow response to ensure component-driven format.

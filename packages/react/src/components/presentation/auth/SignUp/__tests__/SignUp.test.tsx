@@ -375,4 +375,33 @@ describe('SignUp', () => {
       );
     });
   });
+
+  it('seeds the form values from the value the server returned for an input', async () => {
+    mockSignUp.mockResolvedValueOnce({
+      data: {
+        inputs: [
+          {identifier: 'department', ref: 'input_1', required: false, type: 'TEXT_INPUT', value: 'Engineering'},
+          {identifier: 'email', ref: 'input_2', required: true, type: 'EMAIL_INPUT'},
+        ],
+        meta: {
+          components: [
+            {id: 'field_1', ref: 'input_1', type: 'TEXT_INPUT'},
+            {id: 'field_2', ref: 'input_2', type: 'EMAIL_INPUT'},
+          ],
+        },
+      },
+      executionId: 'exec-1',
+      flowStatus: 'INCOMPLETE',
+      type: 'VIEW',
+    });
+    const renderChild = vi.fn(() => <div />);
+
+    renderSignUp({children: renderChild});
+
+    await waitFor(() => {
+      expect(renderChild).toHaveBeenLastCalledWith(
+        expect.objectContaining({values: {department: 'Engineering', email: ''}}),
+      );
+    });
+  });
 });

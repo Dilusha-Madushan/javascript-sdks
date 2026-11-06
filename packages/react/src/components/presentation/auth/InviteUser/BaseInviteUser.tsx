@@ -24,7 +24,7 @@ import useTheme from '../../../../contexts/Theme/useTheme';
 import useThunderID from '../../../../contexts/ThunderID/useThunderID';
 import useTranslation from '../../../../hooks/useTranslation';
 import {cx} from '../../../../styles/emotion';
-import {normalizeFlowResponse, extractErrorMessage} from '../../../../utils/flowTransformer';
+import {collectPrefillValues, normalizeFlowResponse, extractErrorMessage} from '../../../../utils/flowTransformer';
 import AlertPrimitive from '../../../primitives/Alert/Alert';
 // eslint-disable-next-line import/no-named-as-default
 import CardPrimitive, {CardProps} from '../../../primitives/Card/Card';
@@ -365,6 +365,15 @@ const BaseInviteUser: FC<BaseInviteUserProps> = ({
     },
     [t, onError],
   );
+
+  // Show the values the server suggests for the inputs of a new step.
+  useEffect(() => {
+    const prefillValues: Record<string, string> = collectPrefillValues(currentFlow?.data?.components ?? []);
+
+    if (Object.keys(prefillValues).length > 0) {
+      setFormValues((prev: Record<string, string>) => ({...prev, ...prefillValues}));
+    }
+  }, [currentFlow]);
 
   /**
    * Normalize flow response to ensure component-driven format.

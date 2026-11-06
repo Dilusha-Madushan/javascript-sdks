@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {describe, it, expect} from 'vitest';
-import {extractErrorMessage} from '../flowTransformer';
+import {collectPrefillValues, extractErrorMessage, transformComponents} from '../flowTransformer';
 
 const UNIQUENESS_KEY = 'flows.executor.errors.attribute_not_unique';
 
@@ -99,5 +99,70 @@ describe('extractErrorMessage', () => {
     expect(extractErrorMessage({failureReason: 'Invalid credentials'}, t)).toBe('Invalid credentials');
     expect(extractErrorMessage(new Error('Network down'), t)).toBe('Network down');
     expect(extractErrorMessage(undefined, t)).toBe('Something went wrong');
+  });
+});
+
+describe('prefill values', () => {
+  const t = createTranslator();
+
+  const promptResponse = (inputs: Record<string, unknown>[], components: Record<string, unknown>[]) => ({
+    data: {inputs, meta: {components}},
+  });
+
+  it('copies the input value onto the component and still maps the ref to the identifier', () => {
+    const response = promptResponse(
+      [{identifier: 'department', ref: 'input_1', required: true, type: 'TEXT_INPUT', value: 'Engineering'}],
+      [{id: 'field_1', ref: 'input_1', type: 'TEXT_INPUT'}],
+    );
+
+    const [component] = transformComponents(response, t, false);
+
+    expect(component.ref).toBe('department');
+    expect(component.value).toBe('Engineering');
+  });
+
+  it('copies the value onto nested components', () => {
+    const response = promptResponse(
+      [{identifier: 'department', ref: 'input_1', required: false, type: 'TEXT_INPUT', value: 'Engineering'}],
+      [{components: [{id: 'field_1', ref: 'input_1', type: 'TEXT_INPUT'}], id: 'block_1', type: 'BLOCK'}],
+    );
+
+    const [block] = transformComponents(response, t, false);
+
+    expect(block.components?.[0].value).toBe('Engineering');
+  });
+
+  it('leaves out empty values, inputs without a value, and password and OTP inputs', () => {
+    const response = promptResponse(
+      [
+        {identifier: 'empty', ref: 'input_1', required: false, type: 'TEXT_INPUT', value: ''},
+        {identifier: 'none', ref: 'input_2', required: false, type: 'TEXT_INPUT'},
+        {identifier: 'password', ref: 'input_3', required: true, type: 'PASSWORD_INPUT', value: 'secret'},
+        {identifier: 'otp', ref: 'input_4', required: true, type: 'OTP_INPUT', value: '123456'},
+      ],
+      [
+        {id: 'field_1', ref: 'input_1', type: 'TEXT_INPUT'},
+        {id: 'field_2', ref: 'input_2', type: 'TEXT_INPUT'},
+        {id: 'field_3', ref: 'input_3', type: 'PASSWORD_INPUT'},
+        {id: 'field_4', ref: 'input_4', type: 'OTP_INPUT'},
+      ],
+    );
+
+    const components = transformComponents(response, t, false);
+
+    components.forEach((component) => expect(component.value).toBeUndefined());
+  });
+
+  it('collects the values of nested components by identifier', () => {
+    const values = collectPrefillValues([
+      {
+        components: [{id: 'field_1', ref: 'department', type: 'TEXT_INPUT', value: 'Engineering'}],
+        id: 'block_1',
+        type: 'BLOCK',
+      },
+      {id: 'field_2', ref: 'username', type: 'TEXT_INPUT'},
+    ]);
+
+    expect(values).toEqual({department: 'Engineering'});
   });
 });

@@ -19,7 +19,7 @@ import useI18n from '../../../composables/useI18n';
 import {useOAuthCallback} from '../../../composables/useOAuthCallback';
 import {THUNDERID_KEY} from '../../../keys';
 import type {ThunderIDContext} from '../../../models/contexts';
-import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
+import {collectPrefillValues, extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
 import {initiateOAuthRedirect} from '../../../utils/oauth';
 import {renderInviteUserComponents} from '../../auth/sign-in/AuthOptionFactory';
 import Alert from '../../primitives/Alert';
@@ -337,6 +337,18 @@ const BaseAcceptInvite: Component = defineComponent({
         isLoading.value = false;
       }
     };
+
+    // Show the values the server suggests for the inputs of a new step.
+    watch(
+      () => currentFlow.value,
+      (flow: AcceptInviteFlowResponse | null) => {
+        const prefillValues: Record<string, string> = collectPrefillValues(flow?.data?.components ?? []);
+
+        if (Object.keys(prefillValues).length > 0) {
+          formValues.value = {...formValues.value, ...prefillValues};
+        }
+      },
+    );
 
     // ── Token validation on mount ──
 

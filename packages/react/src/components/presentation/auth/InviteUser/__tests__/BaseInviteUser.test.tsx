@@ -206,3 +206,33 @@ describe.each([
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({inputs: expectedInputs}));
   });
 });
+
+describe('BaseInviteUser prefilled inputs', () => {
+  beforeEach(() => {
+    mocks.renderInviteUserComponents.mockReset().mockReturnValue([]);
+  });
+
+  it('seeds the form values from the prefill value of an input component', async () => {
+    const onInitialize = vi.fn().mockResolvedValue({
+      data: {
+        components: [
+          {id: 'department_input', ref: 'department', type: EmbeddedFlowComponentType.TextInput, value: 'Engineering'},
+          {id: 'email_input', ref: 'email', type: EmbeddedFlowComponentType.TextInput},
+        ],
+      },
+      executionId: 'exec-1',
+      flowStatus: 'INCOMPLETE',
+    });
+    const children = vi.fn().mockReturnValue(null);
+
+    render(
+      <BaseInviteUser onInitialize={onInitialize} onSubmit={vi.fn()}>
+        {children}
+      </BaseInviteUser>,
+    );
+
+    await waitFor(() =>
+      expect(children).toHaveBeenLastCalledWith(expect.objectContaining({values: {department: 'Engineering'}})),
+    );
+  });
+});

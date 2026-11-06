@@ -456,6 +456,12 @@ export interface EmbeddedFlowComponent {
   validation?: ValidationRule[];
 
   /**
+   * Value to show prefilled in an input component. The SDK copies it from the matching
+   * `data.inputs[].value` in the flow response, and never sets it for password or OTP inputs.
+   */
+  value?: string;
+
+  /**
    * Component variant that affects visual styling and behavior.
    * The value depends on the component type (e.g., button variants, text variants).
    */
@@ -630,6 +636,8 @@ export interface EmbeddedFlowResponseData {
     type: string;
     /** Server-side validation rules for the input (also returned for API-only customers). */
     validation?: ValidationRule[];
+    /** Default the server suggests for the input, shown prefilled when the input is prompted */
+    value?: string;
   }[];
 
   /**

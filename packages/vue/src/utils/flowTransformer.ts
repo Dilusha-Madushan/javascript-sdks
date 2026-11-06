@@ -29,6 +29,7 @@
 
 import {
   EmbeddedFlowComponent,
+  EmbeddedFlowComponentType,
   FlowMetadataResponse,
   I18nMessage,
   hasUnresolvedTranslationParams,
@@ -89,6 +90,30 @@ const createInputRefMapping = (response: any): Map<string, string> => {
 };
 
 /**
+ * Create a mapping from ref to prefill value based on data.inputs array.
+ * Inputs without a value, and password and OTP inputs, are left out so a secret is never prefilled.
+ */
+const createInputValueMapping = (response: any): Map<string, string> => {
+  const mapping: Map<string, string> = new Map<string, string>();
+
+  if (response?.data?.inputs && Array.isArray(response.data.inputs)) {
+    response.data.inputs.forEach((input: any) => {
+      if (
+        input.ref &&
+        typeof input.value === 'string' &&
+        input.value !== '' &&
+        input.type !== EmbeddedFlowComponentType.PasswordInput &&
+        input.type !== EmbeddedFlowComponentType.OtpInput
+      ) {
+        mapping.set(input.ref, input.value);
+      }
+    });
+  }
+
+  return mapping;
+};
+
+/**
  * Create a mapping from action ref to nextNode based on data.actions array.
  */
 const createActionRefMapping = (response: any): Map<string, string> => {
@@ -113,12 +138,18 @@ const applyInputRefMapping = (
   refMapping: Map<string, string>,
   actionMapping: Map<string, string>,
   inputsData: any[] = [],
+  valueMapping: Map<string, string> = new Map<string, string>(),
 ): EmbeddedFlowComponent[] =>
   components.map((component: EmbeddedFlowComponent) => {
     const transformedComponent: any = {...component} as EmbeddedFlowComponent & {
       actionRef?: string;
       options?: {label: string; value: string}[];
     };
+
+    // Carry the server-supplied prefill value onto the input component before the ref is replaced.
+    if (transformedComponent.ref && valueMapping.has(transformedComponent.ref)) {
+      transformedComponent.value = valueMapping.get(transformedComponent.ref);
+    }
 
     if (transformedComponent.ref && refMapping.has(transformedComponent.ref)) {
       transformedComponent.ref = refMapping.get(transformedComponent.ref);
@@ -153,6 +184,7 @@ const applyInputRefMapping = (
         refMapping,
         actionMapping,
         inputsData,
+        valueMapping,
       );
     }
 
@@ -176,13 +208,33 @@ export const transformComponents = (
 
   const refMapping: Map<string, string> = createInputRefMapping(response);
   const actionMapping: Map<string, string> = createActionRefMapping(response);
+  const valueMapping: Map<string, string> = createInputValueMapping(response);
   const inputsData: any[] = response?.data?.inputs || [];
 
   if (refMapping.size > 0 || actionMapping.size > 0 || inputsData.length > 0) {
-    components = applyInputRefMapping(components, refMapping, actionMapping, inputsData);
+    components = applyInputRefMapping(components, refMapping, actionMapping, inputsData, valueMapping);
   }
 
   return resolveTranslations ? resolveTranslationsInArray(components, t, undefined, meta) : components;
+};
+
+/**
+ * Collect the prefill values carried by input components, keyed by the component ref.
+ */
+export const collectPrefillValues = (components: EmbeddedFlowComponent[]): Record<string, string> => {
+  const values: Record<string, string> = {};
+
+  components.forEach((component: EmbeddedFlowComponent) => {
+    if (component.ref && component.value) {
+      values[component.ref] = component.value;
+    }
+
+    if (component.components) {
+      Object.assign(values, collectPrefillValues(component.components));
+    }
+  });
+
+  return values;
 };
 
 /**

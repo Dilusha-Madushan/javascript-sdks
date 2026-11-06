@@ -22,7 +22,7 @@ import {
 } from 'vue';
 import useFlowMeta from '../../../composables/useFlowMeta';
 import useI18n from '../../../composables/useI18n';
-import {extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
+import {collectPrefillValues, extractErrorMessage, normalizeFlowResponse} from '../../../utils/flowTransformer';
 import {renderInviteUserComponents} from '../../auth/sign-in/AuthOptionFactory';
 import Alert from '../../primitives/Alert';
 import Button from '../../primitives/Button';
@@ -347,6 +347,18 @@ const BaseInviteUser: Component = defineComponent({
       apiError.value = null;
       isFormValid.value = true;
     };
+
+    // Show the values the server suggests for the inputs of a new step.
+    watch(
+      () => currentFlow.value,
+      (flow: InviteUserFlowResponse | null) => {
+        const prefillValues: Record<string, string> = collectPrefillValues(flow?.data?.components ?? []);
+
+        if (Object.keys(prefillValues).length > 0) {
+          formValues.value = {...formValues.value, ...prefillValues};
+        }
+      },
+    );
 
     // ── Flow initialization ──
 

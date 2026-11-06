@@ -24,7 +24,7 @@ import {FormField, useForm} from '../../../../hooks/useForm';
 import useTranslation from '../../../../hooks/useTranslation';
 import {cx} from '../../../../styles/emotion';
 import composeAffixedInputs from '../../../../utils/composeAffixedInputs';
-import {extractErrorMessage} from '../../../../utils/flowTransformer';
+import {collectPrefillValues, extractErrorMessage} from '../../../../utils/flowTransformer';
 import AlertPrimitive from '../../../primitives/Alert/Alert';
 // eslint-disable-next-line import/no-named-as-default
 import CardPrimitive, {CardProps} from '../../../primitives/Card/Card';
@@ -376,6 +376,7 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     errors: formErrors,
     isValid: isFormValid,
     setValue: setFormValue,
+    setValues: setFormValues,
     setTouched: setFormTouched,
     setTouchedFields,
     setErrors: setFormErrors,
@@ -385,6 +386,16 @@ const BaseSignInContent: FC<BaseSignInProps> = ({
     reset: resetForm,
     revalidateTouchedFields,
   } = form;
+
+  // Show the values the server suggests for the inputs of a new step. This runs per step, not per
+  // language change, so a value the person already edited is not put back.
+  useEffect(() => {
+    const prefillValues: Record<string, string> = collectPrefillValues(components);
+
+    if (Object.keys(prefillValues).length > 0) {
+      setFormValues(prefillValues);
+    }
+  }, [components, setFormValues]);
 
   // Project server-side fieldErrors into form state. `setTouchedFields` is used instead
   // of `setTouched` so client-side `validateField` doesn't wipe server errors when the

@@ -88,6 +88,7 @@ export interface BaseSignUpProps {
 }
 
 interface FieldDefinition {
+  initialValue: string;
   name: string;
   required: boolean;
   type: string;
@@ -104,7 +105,7 @@ const extractFormFields = (components: any[]): FieldDefinition[] => {
         c.type === EmbeddedFlowComponentType.Select
       ) {
         const fieldName: string = c.ref || c.id;
-        fields.push({name: fieldName, required: c.required || false, type: c.type});
+        fields.push({initialValue: c.value ?? '', name: fieldName, required: c.required || false, type: c.type});
       }
       if (c.components && Array.isArray(c.components)) {
         process(c.components);
@@ -214,7 +215,7 @@ const BaseSignUp: Component = defineComponent({
       const fields: FieldDefinition[] = extractFormFields(flowResponse.data?.components || []);
       const initialValues: Record<string, string> = {};
       fields.forEach((f: FieldDefinition) => {
-        initialValues[f.name] = '';
+        initialValues[f.name] = f.initialValue;
       });
       formValues.value = initialValues;
       touchedFields.value = {};
@@ -268,7 +269,7 @@ const BaseSignUp: Component = defineComponent({
       const fields: FieldDefinition[] = extractFormFields(props.components || []);
       const freshValues: Record<string, string> = {};
       fields.forEach((f: FieldDefinition) => {
-        freshValues[f.name] = '';
+        freshValues[f.name] = f.initialValue;
       });
       formValues.value = freshValues;
       touchedFields.value = {};

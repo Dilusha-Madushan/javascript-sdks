@@ -69,6 +69,7 @@ export interface BaseSignInProps {
 }
 
 interface FieldDefinition {
+  initialValue: string;
   name: string;
   required: boolean;
   type: string;
@@ -79,7 +80,7 @@ const extractFormFields = (flowComponents: EmbeddedFlowComponent[]): FieldDefini
   const process = (comps: EmbeddedFlowComponent[]): void => {
     comps.forEach((c: any) => {
       if (c.type === 'TEXT_INPUT' || c.type === 'PASSWORD_INPUT' || c.type === 'EMAIL_INPUT' || c.type === 'SELECT') {
-        fields.push({name: c.ref, required: c.required || false, type: c.type});
+        fields.push({initialValue: c.value ?? '', name: c.ref, required: c.required || false, type: c.type});
       }
       if (c.components) {
         process(c.components);
@@ -188,7 +189,7 @@ const BaseSignIn: Component = defineComponent({
         const fields: FieldDefinition[] = extractFormFields(newComponents || []);
         const freshValues: Record<string, string> = {};
         fields.forEach((f: FieldDefinition) => {
-          freshValues[f.name] = '';
+          freshValues[f.name] = f.initialValue;
         });
         formValues.value = freshValues;
         touchedFields.value = {};
@@ -291,7 +292,7 @@ const BaseSignIn: Component = defineComponent({
       const fields: FieldDefinition[] = extractFormFields(props.components || []);
       const freshValues: Record<string, string> = {};
       fields.forEach((f: FieldDefinition) => {
-        freshValues[f.name] = '';
+        freshValues[f.name] = f.initialValue;
       });
       formValues.value = freshValues;
       touchedFields.value = {};

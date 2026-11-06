@@ -38,4 +38,28 @@ describe('BaseSignIn', () => {
       expect.objectContaining({additionalData: {linkingPromptDetails: '[]'}}),
     );
   });
+
+  it('seeds the form values from the prefill value of an input component', () => {
+    const renderChild = vi.fn(() => <div />);
+
+    render(
+      <ThunderIDContext.Provider value={thunderIDContext}>
+        <I18nProvider>
+          <ThemeProvider>
+            <BaseSignIn
+              components={[
+                {id: 'field_1', ref: 'department', type: 'TEXT_INPUT', value: 'Engineering'},
+                {id: 'field_2', ref: 'username', type: 'TEXT_INPUT'},
+              ]}
+              onSubmit={vi.fn()}
+            >
+              {renderChild}
+            </BaseSignIn>
+          </ThemeProvider>
+        </I18nProvider>
+      </ThunderIDContext.Provider>,
+    );
+
+    expect(renderChild).toHaveBeenLastCalledWith(expect.objectContaining({values: {department: 'Engineering'}}));
+  });
 });
